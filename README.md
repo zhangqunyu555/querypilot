@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-**仓库初始化阶段。**目前只有项目说明、实施计划和目录占位，没有可运行的 Agent、训练脚本或实验指标。该项目是独立个人项目，不复用 MiniMind / MedSFT 的结果，也不代表公司实习交付。
+**最小执行框架已完成。**当前包含可运行的 Agent Loop、三个只读 SQLite 工具、调用预算、结构化轨迹和一条脚本策略 smoke demo。脚本策略用于验证执行链路，不是 LLM，也没有训练脚本或实验指标。该项目是独立个人项目，不复用 MiniMind / MedSFT 的结果，也不代表公司实习交付。
 
 ## 项目目标
 
@@ -26,17 +26,36 @@
 ```text
 querypilot/
 ├── README.md
-├── docs/
-│   └── PLAN.md        # 分阶段实施计划与验收条件
-├── src/
-│   └── querypilot/    # 后续放 Agent 与工具实现；当前为空
-└── tests/            # 后续放执行、协议、安全与评测测试；当前为空
+├── docs/PLAN.md
+├── pyproject.toml
+├── src/querypilot/
+│   ├── core.py        # Agent Loop 与 SQLite 工具
+│   └── __main__.py    # 可重复的脚本策略演示
+└── tests/test_core.py
 ```
 
 模型、数据库、数据集、轨迹和训练产物不进入 Git；对应路径已加入 `.gitignore`。小型公开测试夹具可在后续审查来源后单独提交。
 
-## 下一步
+## 运行最小 Demo
 
-按 [实施计划](docs/PLAN.md) 开始第一阶段：确定公开数据来源与许可，准备小规模 SQLite 任务并验证参考 SQL。此阶段不需要 GPU。
+不需要第三方依赖或 GPU：
 
-暂不安装依赖或指定训练框架版本，避免在任务与评测未确定前锁定错误的技术组合。
+```bash
+PYTHONPATH=src python3 -m querypilot --demo
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+```
+
+演示会创建临时商品数据库。脚本策略依次查看表、查看 schema、故意使用不存在的字段，接收错误后修正 SQL，最终返回销售额最高的商品。它验证的是：
+
+```text
+policy -> tool call -> validated execution -> observation -> next decision -> final answer
+```
+
+## 当前边界与下一步
+
+- `policy(messages, tool_schemas)` 是唯一模型接入点，下一阶段替换为支持工具调用的真实 LLM provider。
+- `execute_sql` 同时使用 SQL 类型检查和 SQLite `mode=ro` / `query_only`；当前超时依赖 SQLite progress handler，尚未做进程级硬隔离。
+- 当前数据库为合成 smoke fixture，不是公开训练或评测数据。
+- 尚未实现任务评测、轨迹 SFT 或 GRPO，不能写训练提升。
+
+下一步按 [实施计划](docs/PLAN.md) 选择公开数据并建立小规模基线。此阶段仍不需要 GPU。
